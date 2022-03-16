@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ProxyEndpoint name="default">
+    <Description/>
+    <FaultRules>
+        <FaultRule name="ErrorHandling">
+            <Step>
+                <Name>AM-AddCors</Name>
+                <Condition>(request.verb != "OPTIONS")</Condition>
+            </Step>
+            <Step>
+                <Name>FC-ProxyErrorHandling</Name>
+            </Step>
+            <Condition>(error.status.code != null)</Condition>
+        </FaultRule>
+    </FaultRules>
+    <PreFlow name="PreFlow">
+        <Request>
+            <Step>
+                <Name>AM-Override-Config</Name>
+            </Step>
+            <Step>
+                <Name>AM-XBFOAuthHeader</Name>
+            </Step>
+            <Step>
+                <Name>AM-MandatoryHeaderMissing</Name>
+                <Condition>( request.header.X-BFO-Authorization == null or request.header.X-BFO-Authorization == "" )</Condition>
+            </Step>
+            <Step>
+                <Name>RF-400-Bad-Request</Name>
+                <Condition>( request.header.X-BFO-Authorization == null or request.header.X-BFO-Authorization == "" )</Condition>
+            </Step>
+            <Step>
+                <Name>FC-VerifiyOAuth-LimitTraffic</Name>
+            </Step>
+            <Step>
+                <Name>KVM-GET-Config</Name>
+            </Step>
+        </Request>
+        <Response>
+            <Step>
+                <Name>AM-AddCors</Name>
+            </Step>
+        </Response>
+    </PreFlow>
+    <PostFlow name="PostFlow">
+        <Request/>
+        <Response>
+            <Step>
+                <Name>FC-LogMessage</Name>
+            </Step>
+        </Response>
+    </PostFlow>
+    <Flows>
+        <Flow name="Get Account Programs">
+            <Description>Endpoint is used to get the account assigned program for an selected account.</Description>
+            <Request>
+                <Step>
+                    <Name>KVM-GET-Config</Name>
+                </Step>
+                <Step>
+                    <Name>JS-UpdateQueryParam</Name>
+                    <Condition>request.queryparams.accountid != null or request.queryparams.accountid != ""</Condition>
+                </Step>
+            </Request>
+            <Response/>
+            <Condition>(proxy.pathsuffix MatchesPath "/account-programs") and (request.verb = "GET")</Condition>
+        </Flow>
+        <Flow name="Post Account Programs">
+            <Description>This request is to create Account Assigned Program in bFO.</Description>
+            <Request>
+                <Step>
+                    <Name>KVM-POST-Config</Name>
+                </Step>
+                <Step>
+                    <Name>JX-ConvertPayload</Name>
+                </Step>
+                <Step>
+                    <Name>XSL-ModifyPayloadPostAccountAssignedProgram</Name>
+                </Step>
+                <Step>
+                    <Name>XJ-ModifyPayload</Name>
+                </Step>
+                <Step>
+                    <Name>AM-RemovePathSuffixPost</Name>
+                </Step>
+            </Request>
+            <Response/>
+            <Condition>(proxy.pathsuffix MatchesPath "/account-programs") and (request.verb = "POST")</Condition>
+        </Flow>
+        <Flow name="Options">
+            <Description/>
+            <Request/>
+            <Response>
+                <Step>
+                    <Name>AM-AddCors</Name>
+                </Step>
+            </Response>
+            <Condition>(request.verb = "OPTIONS")</Condition>
+        </Flow>
+        <Flow name="UnsupportedFlow">
+            <Request>
+                <Step>
+                    <Name>AM-403-Forbidden</Name>
+                </Step>
+                <Step>
+                    <Name>RF-403-Forbidden</Name>
+                </Step>
+            </Request>
+            <Response/>
+        </Flow>
+    </Flows>
+    <HTTPProxyConnection>
+        <BasePath>/v1/customer-journey/account-assigned-program</BasePath>
+        <Properties/>
+        <VirtualHost>api.se.com</VirtualHost>
+    </HTTPProxyConnection>
+    <RouteRule name="Backend-Target">
+        <TargetEndpoint>Backend-Target</TargetEndpoint>
+        <Condition>(request.verb = "POST") or (request.verb = "GET")</Condition>
+    </RouteRule>
+    <RouteRule name="NoRoute">
+        <Condition>request.verb == "OPTIONS"</Condition>
+    </RouteRule>
+</ProxyEndpoint>
